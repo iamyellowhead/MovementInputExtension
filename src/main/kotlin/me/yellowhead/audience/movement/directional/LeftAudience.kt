@@ -1,0 +1,33 @@
+package me.yellowhead.audience.movement.directional
+
+import com.typewritermc.core.books.pages.Colors
+import com.typewritermc.core.entries.Ref
+import com.typewritermc.core.entries.ref
+import com.typewritermc.core.extension.annotations.Entry
+import com.typewritermc.engine.paper.entry.entries.AudienceEntry
+import com.typewritermc.engine.paper.entry.entries.AudienceFilter
+import com.typewritermc.engine.paper.entry.entries.AudienceFilterEntry
+import com.typewritermc.engine.paper.entry.entries.Invertible
+import com.typewritermc.engine.paper.entry.entries.TickableDisplay
+import org.bukkit.entity.Player
+
+@Entry(
+    "left_audience",
+    "Filters players pressing left (A key).",
+    Colors.GREEN,
+    icon = "mi:arrow-left"
+)
+class LeftAudience(
+    override val id: String = "",
+    override val name: String = "Left Audience",
+    override val children: List<Ref<out AudienceEntry>> = emptyList(),
+    override val inverted: Boolean = false
+) : AudienceFilterEntry, TickableDisplay, Invertible {
+
+    override suspend fun display(): AudienceFilter = object : AudienceFilter(ref()), TickableDisplay {
+        override fun filter(player: Player): Boolean = player.currentInput.isLeft
+        override fun tick() { consideredPlayers.forEach { it.refresh() } }
+    }
+
+    override fun tick() {}
+}
