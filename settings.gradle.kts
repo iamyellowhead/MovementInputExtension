@@ -1,4 +1,4 @@
-rootProject.name = "MovementExtension"
+rootProject.name = "MovementInputExtension"
 
 pluginManagement {
     repositories {
