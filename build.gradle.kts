@@ -4,6 +4,7 @@ version = "0.9.0-beta-163"
 plugins {
     kotlin("jvm") version "2.0.21"
     id("com.typewritermc.module-plugin") version "1.3.0"
+    id("com.google.devtools.ksp") version "2.0.21-1.0.28"
 }
 
 typewriter {
@@ -29,8 +30,21 @@ repositories {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        force(
+            "org.jetbrains.kotlin:kotlin-stdlib:2.0.21",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.21",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.21",
+            "org.jetbrains.kotlin:kotlin-reflect:2.0.21"
+        )
+    }
+}
+
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.0.21"))
+
 }
 
 kotlin {
