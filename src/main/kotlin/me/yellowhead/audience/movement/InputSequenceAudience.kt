@@ -13,11 +13,26 @@ import me.yellowhead.event.movement.PlayerInputType
 import org.bukkit.entity.Player
 import java.util.UUID
 
+private data class InputState(
+    val jump: Boolean,
+    val sprint: Boolean,
+    val sneak: Boolean,
+    val forward: Boolean,
+    val backward: Boolean,
+    val left: Boolean,
+    val right: Boolean,
+)
+
+private object InputSequenceData {
+    val lastStates = mutableMapOf<UUID, InputState>()
+    val sequences = mutableMapOf<UUID, ArrayDeque<PlayerInputType>>()
+}
+
 @Entry(
     "input_sequence_audience",
     "Tracks a sequence of four movement inputs, updating after each press.",
     Colors.GREEN,
-    icon = "game-icons:keyboard"
+    icon = "game-icons:keyboard",
 )
 class InputSequenceAudience(
     override val id: String = "",
@@ -26,26 +41,13 @@ class InputSequenceAudience(
     override val inverted: Boolean = false,
 ) : AudienceFilterEntry, TickableDisplay, Invertible {
 
-    private data class InputState(
-        val jump: Boolean,
-        val sprint: Boolean,
-        val sneak: Boolean,
-        val forward: Boolean,
-        val backward: Boolean,
-        val left: Boolean,
-        val right: Boolean,
-    )
-
-    private val lastStates = mutableMapOf<UUID, InputState>()
-    private val sequences = mutableMapOf<UUID, ArrayDeque<PlayerInputType>>()
-
     override suspend fun display(): AudienceFilter = object : AudienceFilter(ref()), TickableDisplay {
         override fun filter(player: Player): Boolean = true
 
         override fun tick() {
             consideredPlayers.forEach { player ->
                 val input = player.currentInput
-                val last = lastStates[player.uniqueId]
+                val last = InputSequenceData.lastStates[player.uniqueId]
 
                 val newlyPressed = mutableListOf<PlayerInputType>()
                 if (input.isJump && (last?.jump != true)) newlyPressed += PlayerInputType.JUMP
@@ -57,7 +59,7 @@ class InputSequenceAudience(
                 if (input.isRight && (last?.right != true)) newlyPressed += PlayerInputType.RIGHT
 
                 if (newlyPressed.isNotEmpty()) {
-                    val seq = sequences.getOrPut(player.uniqueId) { ArrayDeque() }
+                    val seq = InputSequenceData.sequences.getOrPut(player.uniqueId) { ArrayDeque() }
                     newlyPressed.forEach { seq.addLast(it) }
                     player.sendMessage(seq.joinToString(" ") { it.asDisplay() })
                     if (seq.size >= 4) {
@@ -65,7 +67,7 @@ class InputSequenceAudience(
                     }
                 }
 
-                lastStates[player.uniqueId] = InputState(
+                InputSequenceData.lastStates[player.uniqueId] = InputState(
                     input.isJump,
                     input.isSprint,
                     input.isSneak,
@@ -90,3 +92,4 @@ private fun PlayerInputType.asDisplay(): String = when (this) {
     PlayerInputType.LEFT -> "A"
     PlayerInputType.RIGHT -> "D"
 }
+
