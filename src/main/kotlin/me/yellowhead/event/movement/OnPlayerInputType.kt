@@ -11,11 +11,15 @@ import com.typewritermc.core.extension.annotations.KeyType
 import com.typewritermc.core.interaction.EntryContextKey
 import com.typewritermc.core.interaction.context
 import com.typewritermc.engine.paper.entry.TriggerableEntry
-import com.typewritermc.engine.paper.entry.entries.EventEntry
+import com.typewritermc.engine.paper.entry.entries.CancelableEventEntry
+import com.typewritermc.engine.paper.entry.entries.ConstVar
 import com.typewritermc.engine.paper.entry.entries.Var
+import com.typewritermc.engine.paper.entry.entries.shouldCancel
 import com.typewritermc.engine.paper.entry.startDialogueWithOrNextDialogue
 import com.typewritermc.engine.paper.utils.item.Item
 import org.bukkit.entity.Player
+import org.bukkit.event.inventory.ClickType
+import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerInputEvent
 import org.bukkit.event.player.PlayerSwapHandItemsEvent
@@ -39,8 +43,11 @@ class PlayerInputEventEntry(
     val inputType: Optional<PlayerInputType> = Optional.empty(),
 
     @Help("Require the player to be holding this item.")
-    val heldItem: Optional<Var<Item>> = Optional.empty()
-) : EventEntry
+    val heldItem: Optional<Var<Item>> = Optional.empty(),
+
+    // NEW: allow cancelling like the example
+    override val cancel: Var<Boolean> = ConstVar(false),
+) : CancelableEventEntry
 
 enum class PlayerInputContextKeys(override val klass: KClass<*>) : EntryContextKey {
     @KeyType(PlayerInputType::class) INPUT_TYPE(PlayerInputType::class),
@@ -121,7 +128,7 @@ private fun hasMatchingItem(player: Player, expected: ItemStack): Boolean {
 
 /* ---------- Listeners ---------- */
 
-@EntryListener(PlayerInputEventEntry::class)
+@EntryListener(PlayerInputEventEntry::class, ignoreCancelled = true)
 fun onPlayerInput(event: PlayerInputEvent, query: Query<PlayerInputEventEntry>) {
     val p = event.player
     val entries = query.findMatching(
@@ -142,10 +149,11 @@ fun onPlayerInput(event: PlayerInputEvent, query: Query<PlayerInputEventEntry>) 
         heldItemMatches = { expected -> hasMatchingItem(p, expected) }
     )
 
+    // PlayerInputEvent itself isn't cancellable in Bukkit; cancel flag applies to other events below.
     deliver(entries, p, derivePrimaryType(event), flagsFrom(event))
 }
 
-@EntryListener(PlayerInputEventEntry::class)
+@EntryListener(PlayerInputEventEntry::class, ignoreCancelled = true)
 fun onPlayerDrop(event: PlayerDropItemEvent, query: Query<PlayerInputEventEntry>) {
     val p = event.player
     val entries = query.findMatching(
@@ -153,12 +161,18 @@ fun onPlayerDrop(event: PlayerDropItemEvent, query: Query<PlayerInputEventEntry>
         desired = { it == PlayerInputType.DROP },
         heldItemMatches = { expected -> event.itemDrop.itemStack.isSimilar(expected) }
     )
+
     deliver(entries, p, PlayerInputType.DROP, Flags(drop = true))
+    if (entries.shouldCancel(p)) event.isCancelled = true
 }
 
-@EntryListener(PlayerInputEventEntry::class)
+@EntryListener(PlayerInputEventEntry::class, ignoreCancelled = true)
 fun onPlayerSwapHands(event: PlayerSwapHandItemsEvent, query: Query<PlayerInputEventEntry>) {
     val p = event.player
+
+    // Ignore ghost swaps (both hands empty)
+    if (event.mainHandItem.type.isAir && event.offHandItem.type.isAir) return
+
     val entries = query.findMatching(
         player = p,
         desired = { it == PlayerInputType.SWAP_HANDS },
@@ -166,7 +180,26 @@ fun onPlayerSwapHands(event: PlayerSwapHandItemsEvent, query: Query<PlayerInputE
             event.mainHandItem.isSimilar(expected) || event.offHandItem.isSimilar(expected)
         }
     )
+
     deliver(entries, p, PlayerInputType.SWAP_HANDS, Flags(swapHands = true))
+    if (entries.shouldCancel(p)) event.isCancelled = true
+}
+
+@EntryListener(PlayerInputEventEntry::class, ignoreCancelled = true)
+fun onInventoryDrop(e: InventoryClickEvent, query: Query<PlayerInputEventEntry>) {
+    if (e.click != ClickType.DROP && e.click != ClickType.CONTROL_DROP) return
+    val player = e.whoClicked as? Player ?: return
+    val stack = e.currentItem ?: return
+    if (stack.type.isAir) return
+
+    val entries = query.findMatching(
+        player = player,
+        desired = { it == PlayerInputType.DROP },
+        heldItemMatches = { expected -> stack.isSimilar(expected) }
+    )
+
+    deliver(entries, player, PlayerInputType.DROP, Flags(drop = true))
+    if (entries.shouldCancel(player)) e.isCancelled = true
 }
 
 /* ---------- Utility ---------- */
