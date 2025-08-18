@@ -138,7 +138,7 @@ fun onPlayerInput(event: PlayerInputEvent, query: Query<PlayerInputEventEntry>) 
                 PlayerInputType.LEFT      -> event.input.isLeft
                 PlayerInputType.RIGHT     -> event.input.isRight
                 PlayerInputType.DROP,
-                PlayerInputType.SWAP_HANDS -> false // not produced by this event
+                PlayerInputType.SWAP_HANDS -> false
             }
         },
         heldItemMatches = { expected -> hasMatchingItem(p, expected) }
