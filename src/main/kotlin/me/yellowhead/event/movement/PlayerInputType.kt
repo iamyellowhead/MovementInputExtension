@@ -7,5 +7,7 @@ enum class PlayerInputType {
     FORWARD,
     BACKWARD,
     LEFT,
-    RIGHT
+    RIGHT,
+    DROP,
+    SWAP_HANDS
 }
