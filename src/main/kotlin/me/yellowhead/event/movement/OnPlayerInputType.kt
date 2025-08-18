@@ -45,7 +45,6 @@ class PlayerInputEventEntry(
     @Help("Require the player to be holding this item.")
     val heldItem: Optional<Var<Item>> = Optional.empty(),
 
-    // NEW: allow cancelling like the example
     override val cancel: Var<Boolean> = ConstVar(false),
 ) : CancelableEventEntry
 
@@ -62,8 +61,6 @@ enum class PlayerInputContextKeys(override val klass: KClass<*>) : EntryContextK
     @KeyType(Boolean::class) IS_DROP(Boolean::class),
     @KeyType(Boolean::class) IS_SWAP_HANDS(Boolean::class),
 }
-
-/* ---------- Dedup helpers ---------- */
 
 private data class Flags(
     val jump: Boolean = false,
@@ -126,8 +123,6 @@ private fun hasMatchingItem(player: Player, expected: ItemStack): Boolean {
     return !main.type.isAir && main.isSimilar(expected)
 }
 
-/* ---------- Listeners ---------- */
-
 @EntryListener(PlayerInputEventEntry::class, ignoreCancelled = true)
 fun onPlayerInput(event: PlayerInputEvent, query: Query<PlayerInputEventEntry>) {
     val p = event.player
@@ -148,8 +143,6 @@ fun onPlayerInput(event: PlayerInputEvent, query: Query<PlayerInputEventEntry>) 
         },
         heldItemMatches = { expected -> hasMatchingItem(p, expected) }
     )
-
-    // PlayerInputEvent itself isn't cancellable in Bukkit; cancel flag applies to other events below.
     deliver(entries, p, derivePrimaryType(event), flagsFrom(event))
 }
 
@@ -201,8 +194,6 @@ fun onInventoryDrop(e: InventoryClickEvent, query: Query<PlayerInputEventEntry>)
     deliver(entries, player, PlayerInputType.DROP, Flags(drop = true))
     if (entries.shouldCancel(player)) e.isCancelled = true
 }
-
-/* ---------- Utility ---------- */
 
 private fun derivePrimaryType(event: PlayerInputEvent): PlayerInputType {
     val i = event.input
